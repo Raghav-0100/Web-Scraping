@@ -1,5 +1,5 @@
+const fs = require("fs");
 const puppeteer = require('puppeteer');
-const fs = require('fs');
 
 (async () => {
     const browser = await puppeteer.launch({
@@ -12,14 +12,19 @@ const fs = require('fs');
 
     await page.goto(
         "https://www.amazon.in/s?bbn=81107432031&rh=n%3A81107432031%2Cp_85%3A10440599031&_encoding=UTF8",
-        { waitUntil: 'networkidle2' }
+        { waitUntil: 'networkidle2' } // wait until the network is idle to ensure the page is fully loaded
     );
 
     let items = [];
-    let isBtnDisabled = false;
 
+    let isBtnDisabled = false;
     while (!isBtnDisabled) {
-        const productsHandles = await page.$$('.s-main-slot .s-result-item');
+        // Use a more accurate selector for product handles
+
+        await page.waitForSelector('[data-cel-widget="search_result_0"]');
+        const productsHandles = await page.$$(
+          "div.s-main-slot.s-result-list.s-search-results.sg-row > .s-result-item"
+        );
 
         for (const productHandle of productsHandles) {
             let title = "NULL";
@@ -41,15 +46,15 @@ const fs = require('fs');
                 return imageElement ? imageElement.getAttribute("src") : null;
             }, productHandle);
 
-            items.push({ title, price, img });
-
-            if (title) {
+            // items.push({ title, price, img });
+            
+            if (title !== "Null") {
                 fs.appendFile(
-                    "results.csv",
-                    `${title.replace(/,/g, ".")},${price},${img}\n`,
-                    function (err) {
-                        if (err) throw err;
-                    }
+                  "results.csv",
+                  `${title.replace(/,/g, ".")},${price},${img}\n`,
+                  function (err) {
+                    if (err) throw err;
+                  }
                 );
             }
         }
@@ -62,13 +67,15 @@ const fs = require('fs');
 
         if (!isBtnDisabled) {
             await Promise.all([
-                page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                page.waitForNavigation({ waitUntil: 'networkidle2' }), // Wait for the new page to load
                 page.click('.s-pagination-item.s-pagination-next')
             ]);
         }
     }
 
-    console.log(items);
+    // console.log(items);
+    // console.log(items.length);
 
-    await browser.close();
-})();
+
+  //  await browser.close();
+  })();
